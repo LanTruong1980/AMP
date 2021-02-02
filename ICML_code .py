@@ -122,7 +122,7 @@ for count in range(len(Deltavec)):
  # Generate S,A,y
   s=np.zeros((n,1))
   for i in range(n):
-   s[i]= np.random.binomial(1, 1-k/n)
+   s[i]= np.random.binomial(1, k/n)
    if s[i]==1:
     s[i]=2*np.random.binomial(1, 1/2)-1
   A=np.sqrt(1/n*beta)*np.random.normal(0,1,size=(m,n))
