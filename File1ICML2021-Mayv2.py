@@ -1,207 +1,294 @@
-#!/usr/bin/env python
-# coding: utf-8
-
-# In[ ]:
-
-
-#This Python code is for the submitted manuscript:
-# The fundamental limits of sparse linear regression with sublinear sparsity, Arxiv: https://arxiv.org/abs/2101.11156
-# This program plots MMSE and the MSE of AMP as functions of SNR
-
-
-# In[89]:
-
-
-import math
-import numpy as np
-from scipy import integrate
-from numpy import linalg as LA
-import matplotlib.pyplot as plt
-
-
-# In[90]:
-
-
-n=500
-alpha=0.5
-beta=0.9
-m=math.floor(alpha*(n**beta))
-k=n**beta
-snrdB=np.array(range(-2,3,1))
-snr=10**(0.1*snrdB)
-Deltavec=1/snr
-
-
-# In[91]:
-
-
-# Draw the theoretical limit (MMSE)
-gap=10**(-2)
-tilE=np.zeros(len(Deltavec))
-count=0
-while count<len(Deltavec):
- Delta=Deltavec[count]
- step=gap*Delta/n**(1-beta)
- Evec=np.arange(0,Delta/n**(1-beta),step) # Trace tilE(Delta)
- E=Evec[0]
- pphi=(alpha/2)*(np.log(1+E/Delta)-E/(E+Delta))
- Sigma=np.sqrt((E+Delta)/(alpha*(n**(beta-1)))) 
- positivepart=lambda y: ((1-k/n)*(1/(Sigma*np.sqrt(2*math.pi)))*np.exp(-y**2/(2*Sigma**2))                        +(k/n)*(1/(2*Sigma*np.sqrt(2*math.pi)))                        *(np.exp(-(y-np.sqrt(Delta))**2/(2*Sigma**2))                        +np.exp(-(y+np.sqrt(Delta))**2/(2*Sigma**2)))                        *(np.log(1/(2*Sigma*np.sqrt(2*math.pi)))-(1/(2*Sigma**2))*(y-np.sqrt(Delta))**2                         +np.log(2*(1-k/n)*np.exp((Delta-2*y*np.sqrt(Delta))/(2*Sigma**2))                        +(k/n)*(1+np.exp(-2*y*np.sqrt(Delta)/Sigma**2)))))
- iden1,err1=integrate.quad(positivepart, 0, np.inf)
- negativepart=lambda y: ((1-k/n)*(1/(Sigma*np.sqrt(2*math.pi)))*np.exp(-y**2/(2*Sigma**2))                        +(k/n)*(1/(2*Sigma*np.sqrt(2*math.pi)))                        *(np.exp(-(y-np.sqrt(Delta))**2/(2*Sigma**2))                        +np.exp(-(y+np.sqrt(Delta))**2/(2*Sigma**2)))                        *(np.log(1/(2*Sigma*np.sqrt(2*math.pi)))-(1/(2*Sigma**2))*(y+np.sqrt(Delta))**2                         +np.log(2*(1-k/n)*np.exp((Delta+2*y*np.sqrt(Delta))/(2*Sigma**2))                        +(k/n)*(1+np.exp(2*y*np.sqrt(Delta)/Sigma**2)))))
- iden2,err2=integrate.quad(negativepart, -np.inf, 0)
- iden=-(iden1+iden2)-(1/2)*np.log(2*math.pi*np.exp(1)*Sigma**2)
- fRSmin=pphi+n**(1-beta)*iden
- tilEtemp=E   
- for t in range(1,len(Evec)-1,1):
-  E=Evec[t]
-  pphi=(alpha/2)*(np.log(1+E/Delta)-E/(E+Delta))
-  Sigma=np.sqrt((E+Delta)/(alpha*(n**(beta-1)))) 
-  positivepart=lambda y: ((1-k/n)*(1/(Sigma*np.sqrt(2*math.pi)))*np.exp(-y**2/(2*Sigma**2))                        +(k/n)*(1/(2*Sigma*np.sqrt(2*math.pi)))                        *(np.exp(-(y-np.sqrt(Delta))**2/(2*Sigma**2))                        +np.exp(-(y+np.sqrt(Delta))**2/(2*Sigma**2)))                        *(np.log(1/(2*Sigma*np.sqrt(2*math.pi)))-(1/(2*Sigma**2))*(y-np.sqrt(Delta))**2                         +np.log(2*(1-k/n)*np.exp((Delta-2*y*np.sqrt(Delta))/(2*Sigma**2))                        +(k/n)*(1+np.exp(-2*y*np.sqrt(Delta)/Sigma**2)))))
-  iden1,err1=integrate.quad(positivepart, 0, np.inf)
-  negativepart=lambda y: ((1-k/n)*(1/(Sigma*np.sqrt(2*math.pi)))*np.exp(-y**2/(2*Sigma**2))                        +(k/n)*(1/(2*Sigma*np.sqrt(2*math.pi)))                        *(np.exp(-(y-np.sqrt(Delta))**2/(2*Sigma**2))                        +np.exp(-(y+np.sqrt(Delta))**2/(2*Sigma**2)))                        *(np.log(1/(2*Sigma*np.sqrt(2*math.pi)))-(1/(2*Sigma**2))*(y+np.sqrt(Delta))**2                         +np.log(2*(1-k/n)*np.exp((Delta+2*y*np.sqrt(Delta))/(2*Sigma**2))                        +(k/n)*(1+np.exp(2*y*np.sqrt(Delta)/Sigma**2)))))
-  iden2,err2=integrate.quad(negativepart, -np.inf, 0)
-  iden=-(iden1+iden2)-(1/2)*np.log(2*math.pi*np.exp(1)*Sigma**2)
-  fRS=pphi+n**(1-beta)*iden
-  if fRS<fRSmin:
-    tilEtemp=E
-    fRSmin=fRS
- tilE[count]=(n**(1-beta))*tilEtemp
- count+=1 
-
-
-# In[92]:
-
-
-def etafunanderielemt(x,k,n,tau,Delta):
- if x>=0:
-   yelemt=((1/2)*(k/n)*np.sqrt(Delta)*(1-np.exp(-2*x*np.sqrt(Delta)/tau**2)))/((1-k/n)*np.exp((Delta-2*x*np.sqrt(Delta))/(2*tau**2))
-                            +(1/2)*(k/n)*(1+np.exp(-2*x*np.sqrt(Delta)/tau**2)))
-   a=(Delta/(2*tau**2))*(k/n)*(1-k/n)*np.exp((Delta-2*x*np.sqrt(Delta))/(2*tau**2))               *(1+np.exp(-2*x*np.sqrt(Delta)/tau**2))               +(Delta/tau**2)*(k/n)**2*np.exp(-2*x*np.sqrt(Delta)/tau**2)
-   b=(((1-k/n)*np.exp((Delta-2*x*np.sqrt(Delta))/(2*tau**2))           +(1/2)*(k/n)*(1+np.exp(-2*x*np.sqrt(Delta)/(2*tau**2)))))**2
- else:
-   yelemt=((1/2)*(k/n)*np.sqrt(Delta)*(-1+np.exp(2*x*np.sqrt(Delta)/tau**2)))/((1-k/n)*np.exp((Delta+2*x*np.sqrt(Delta))/(2*tau**2))
-                            +(1/2)*(k/n)*(1+np.exp(2*x*np.sqrt(Delta)/tau**2)))
-   a=(Delta/(2*tau**2))*(k/n)*(1-k/n)*np.exp((Delta+2*x*np.sqrt(Delta))/(2*tau**2))               *(1+np.exp(2*x*np.sqrt(Delta)/tau**2))               +(Delta/tau**2)*(k/n)**2*np.exp(2*x*np.sqrt(Delta)/tau**2)
-   b=(((1-k/n)*np.exp((Delta+2*x*np.sqrt(Delta))/(2*tau**2))           +(1/2)*(k/n)*(1+np.exp(2*x*np.sqrt(Delta)/(2*tau**2)))))**2 
- yderielemt=a/b
- return yelemt,yderielemt   
-
-def etafunanderi(v,k,n,tau,Delta):
- yderitemp=np.zeros((len(v),1))
- y=np.zeros((len(v),1)) 
- for i in range(len(v)):
-  y[i],yderitemp[i]=etafunanderielemt(v[i][0],k,n,tau,Delta)
- yderi=np.mean(yderitemp)
- return y,yderi
-
-# Run AMP (iter=10)
-MSE10=np.zeros(len(Deltavec)) # ALG1
-MSE11=np.zeros(len(Deltavec)) # Classical AMP
-for count in range(len(Deltavec)):
- Delta=Deltavec[count]
- maxouter=100
- MSEouter10=np.zeros(maxouter)
- MSEouter11=np.zeros(maxouter)
- out=0 
- while out<maxouter:
- # Generate S,A,y
-  s=np.zeros(n)
-  for i in range(n):
-   s[i]= np.random.binomial(1, k/n)
-   if s[i]==1:
-    s[i]=(2*np.random.binomial(1, 1/2)-1)*np.sqrt(Delta)
-  A=np.sqrt(1/n*beta)*np.random.normal(0,1,size=(m,n))
-  W=np.random.normal(0,1,size=(m,1))
-  y=np.matmul(A,s)+ W*np.sqrt(Delta)
-  # Algorithm 1
-  xhat=np.zeros((n,1))
-  iterAMP=10
-  z=np.zeros((m,1))
-  iter=0
-  pderi=0
-  tau=np.sqrt(Delta+Delta/alpha)
-  while iter<iterAMP:
-    z=y-np.matmul(A,xhat)+(1/alpha)*z*pderi
-    h=np.matmul(A.transpose(),z)+xhat
-    p,pderi=etafunanderi(h,k,n,tau,Delta)  #etafunanderi(x,k,n,tau,Delta)
-    xhat=p
-    maxiter=1000
-    u=np.random.normal(size=(maxiter,1))
-    ma,deria=etafunanderi(tau*u,k,n,tau,Delta)  #etafunanderi(xi,k,n,tau,Delta):
-    mb,derib=etafunanderi(np.sqrt(Delta)+tau*u,k,n,tau,Delta)
-    mc,deric=etafunanderi(-np.sqrt(Delta)+tau*u,k,n,tau,Delta)
-    v=(1-k/n)*ma**2+(k/n)*(1/2)*((mb-np.sqrt(Delta))**2+(mc+np.sqrt(Delta))**2)
-    G=np.mean(v)
-    tau=np.sqrt(Delta+(n**(1-beta)/alpha)*G)
-    iter+=1
-  sumup=0
-  for i in range(len(s)):
-    sumup=sumup+(xhat[i]-s[i])**2
-  MSEouter10[out]=sumup/n**beta
-  # Classical AMP
-  xhat=np.zeros((n,1))
-  iterAMP=10
-  z=np.zeros((m,1))
-  iter=0
-  pderi=0
-  tau=np.sqrt(Delta+Delta/alpha)
-  while iter<iterAMP:
-    z=y-np.matmul(A,xhat)+(1/alpha)*z*pderi
-    h=np.matmul(A.transpose(),z)+xhat
-    p,pderi=etafunanderi(h,k,n,tau,Delta)  #etafunanderi(x,k,n,tau,Delta)
-    xhat=p
-    maxiter=1000
-    u=np.random.normal(size=(maxiter,1))
-    ma,deria=etafunanderi(tau*u,k,n,tau,Delta)  #etafunanderi(xi,k,n,tau,Delta):
-    mb,derib=etafunanderi(np.sqrt(Delta)+tau*u,k,n,tau,Delta)
-    mc,deric=etafunanderi(-np.sqrt(Delta)+tau*u,k,n,tau,Delta)
-    v=(1-k/n)*ma**2+(k/n)*(1/2)*((mb-np.sqrt(Delta))**2+(mc+np.sqrt(Delta))**2)
-    G=np.mean(v)
-    tau=np.sqrt(Delta+(1/alpha)*G)
-    iter+=1
-  sumup=0
-  for i in range(len(s)):
-    sumup=sumup+(xhat[i]-s[i])**2
-  MSEouter11[out]=sumup/n**beta
-  out+=1 #outer loop
-  MSE10[count]=np.mean(MSEouter10)
-  MSE11[count]=np.mean(MSEouter11)
-
-
-# In[95]:
-
-
-#State Evolutions
-SE=np.zeros(len(Deltavec)) # State Evolution
-for count in range(len(Deltavec)):
- Delta=Deltavec[count]
- tau=np.sqrt(Delta+Delta/alpha)
- iterAMP=10;
- while iter<iterAMP:
-    maxiter=1000
-    u=np.random.normal(size=(maxiter,1))
-    ma,deria=etafunanderi(tau*u,k,n,tau,Delta)  #etafunanderi(xi,k,n,tau,Delta):
-    mb,derib=etafunanderi(np.sqrt(Delta)+tau*u,k,n,tau,Delta)
-    mc,deric=etafunanderi(-np.sqrt(Delta)+tau*u,k,n,tau,Delta)
-    v=(1-k/n)*ma**2+(k/n)*(1/2)*((mb-np.sqrt(Delta))**2+(mc+np.sqrt(Delta))**2)
-    G=np.mean(v)
-    tau=np.sqrt(Delta+(n**(1-beta)/alpha)*G)
-    iter+=1
- SE[count]=alpha*(tau**2-Delta)
- 
-
-
-# In[96]:
-
-
-fig, ax = plt.subplots()
-ax.plot(1/Deltavec,tilE,'b-o',1/Deltavec,MSE10,'m:x',1/Deltavec,MSE11,'r-.+',1/Deltavec,SE,'g--*',linewidth=2)
-ax.set_xlabel('SNR (dB)')
-ax.set_ylabel('MSE')
-plt.legend(('Fundamental Limit','Algorithm 1 (10 iterations)','Classical AMP (10 iterations)','Algorithm 1 (State Evolution)'))
-#ax.set_xlim((1, 2.5))
-#ax.set_ylim((0, 1))
-ax.grid(True)
-plt.savefig("JML2021fig1.pdf")
-
+{
+ "cells": [
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "#This Python code is for the submitted manuscript:\n",
+    "# The fundamental limits of sparse linear regression with sublinear sparsity, Arxiv: https://arxiv.org/abs/2101.11156\n",
+    "# This program plots MMSE and the MSE of AMP as functions of SNR"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 11,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "import math\n",
+    "import numpy as np\n",
+    "from scipy import integrate\n",
+    "from numpy import linalg as LA\n",
+    "import matplotlib.pyplot as plt\n"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 12,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "n=500\n",
+    "alpha=0.1\n",
+    "beta=0.9\n",
+    "m=math.floor(alpha*(n**beta))\n",
+    "k=n**beta\n",
+    "snrdB=np.array(range(-2,3,1))\n",
+    "snr=10**(0.1*snrdB)\n",
+    "Deltavec=alpha/snr"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 13,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# Draw the theoretical limit (MMSE)\n",
+    "gap=10**(-2)\n",
+    "tilE=np.zeros(len(Deltavec))\n",
+    "count=0\n",
+    "while count<len(Deltavec):\n",
+    " Delta=Deltavec[count]\n",
+    " step=gap*Delta/n**(1-beta)\n",
+    " Evec=np.arange(0,Delta/n**(1-beta),step) # Trace tilE(Delta)\n",
+    " E=Evec[0]\n",
+    " pphi=(alpha/2)*(np.log(1+E/Delta)-E/(E+Delta))\n",
+    " Sigma=np.sqrt((E+Delta)/(alpha*(n**(beta-1)))) \n",
+    " positivepart=lambda y: ((1-k/n)*(1/(Sigma*np.sqrt(2*math.pi)))*np.exp(-y**2/(2*Sigma**2))\\\n",
+    "                        +(k/n)*(1/(2*Sigma*np.sqrt(2*math.pi)))\\\n",
+    "                        *(np.exp(-(y-np.sqrt(Delta))**2/(2*Sigma**2))\\\n",
+    "                        +np.exp(-(y+np.sqrt(Delta))**2/(2*Sigma**2)))\\\n",
+    "                        *(np.log(1/(2*Sigma*np.sqrt(2*math.pi)))-(1/(2*Sigma**2))*(y-np.sqrt(Delta))**2 \\\n",
+    "                        +np.log(2*(1-k/n)*np.exp((Delta-2*y*np.sqrt(Delta))/(2*Sigma**2))\\\n",
+    "                        +(k/n)*(1+np.exp(-2*y*np.sqrt(Delta)/Sigma**2)))))\n",
+    " iden1,err1=integrate.quad(positivepart, 0, np.inf)\n",
+    " negativepart=lambda y: ((1-k/n)*(1/(Sigma*np.sqrt(2*math.pi)))*np.exp(-y**2/(2*Sigma**2))\\\n",
+    "                        +(k/n)*(1/(2*Sigma*np.sqrt(2*math.pi)))\\\n",
+    "                        *(np.exp(-(y-np.sqrt(Delta))**2/(2*Sigma**2))\\\n",
+    "                        +np.exp(-(y+np.sqrt(Delta))**2/(2*Sigma**2)))\\\n",
+    "                        *(np.log(1/(2*Sigma*np.sqrt(2*math.pi)))-(1/(2*Sigma**2))*(y+np.sqrt(Delta))**2 \\\n",
+    "                        +np.log(2*(1-k/n)*np.exp((Delta+2*y*np.sqrt(Delta))/(2*Sigma**2))\\\n",
+    "                        +(k/n)*(1+np.exp(2*y*np.sqrt(Delta)/Sigma**2)))))\n",
+    " iden2,err2=integrate.quad(negativepart, -np.inf, 0)\n",
+    " iden=-(iden1+iden2)-(1/2)*np.log(2*math.pi*np.exp(1)*Sigma**2)\n",
+    " fRSmin=pphi+n**(1-beta)*iden\n",
+    " tilEtemp=E   \n",
+    " for t in range(1,len(Evec)-1,1):\n",
+    "  E=Evec[t]\n",
+    "  pphi=(alpha/2)*(np.log(1+E/Delta)-E/(E+Delta))\n",
+    "  Sigma=np.sqrt((E+Delta)/(alpha*(n**(beta-1)))) \n",
+    "  positivepart=lambda y: ((1-k/n)*(1/(Sigma*np.sqrt(2*math.pi)))*np.exp(-y**2/(2*Sigma**2))\\\n",
+    "                        +(k/n)*(1/(2*Sigma*np.sqrt(2*math.pi)))\\\n",
+    "                        *(np.exp(-(y-np.sqrt(Delta))**2/(2*Sigma**2))\\\n",
+    "                        +np.exp(-(y+np.sqrt(Delta))**2/(2*Sigma**2)))\\\n",
+    "                        *(np.log(1/(2*Sigma*np.sqrt(2*math.pi)))-(1/(2*Sigma**2))*(y-np.sqrt(Delta))**2 \\\n",
+    "                        +np.log(2*(1-k/n)*np.exp((Delta-2*y*np.sqrt(Delta))/(2*Sigma**2))\\\n",
+    "                        +(k/n)*(1+np.exp(-2*y*np.sqrt(Delta)/Sigma**2)))))\n",
+    "  iden1,err1=integrate.quad(positivepart, 0, np.inf)\n",
+    "  negativepart=lambda y: ((1-k/n)*(1/(Sigma*np.sqrt(2*math.pi)))*np.exp(-y**2/(2*Sigma**2))\\\n",
+    "                        +(k/n)*(1/(2*Sigma*np.sqrt(2*math.pi)))\\\n",
+    "                        *(np.exp(-(y-np.sqrt(Delta))**2/(2*Sigma**2))\\\n",
+    "                        +np.exp(-(y+np.sqrt(Delta))**2/(2*Sigma**2)))\\\n",
+    "                        *(np.log(1/(2*Sigma*np.sqrt(2*math.pi)))-(1/(2*Sigma**2))*(y+np.sqrt(Delta))**2 \\\n",
+    "                        +np.log(2*(1-k/n)*np.exp((Delta+2*y*np.sqrt(Delta))/(2*Sigma**2))\\\n",
+    "                        +(k/n)*(1+np.exp(2*y*np.sqrt(Delta)/Sigma**2)))))\n",
+    "  iden2,err2=integrate.quad(negativepart, -np.inf, 0)\n",
+    "  iden=-(iden1+iden2)-(1/2)*np.log(2*math.pi*np.exp(1)*Sigma**2)\n",
+    "  fRS=pphi+n**(1-beta)*iden\n",
+    "  if fRS<fRSmin:\n",
+    "    tilEtemp=E\n",
+    "    fRSmin=fRS\n",
+    " tilE[count]=(n**(1-beta))*tilEtemp\n",
+    " count+=1 "
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 14,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "def etafunanderielemt(x,k,n,tau,Delta):\n",
+    " if x>=0:\n",
+    "   yelemt=((1/2)*(k/n)*np.sqrt(Delta)*(1-np.exp(-2*x*np.sqrt(Delta)/tau**2)))/((1-k/n)*np.exp((Delta-2*x*np.sqrt(Delta))/(2*tau**2))\n",
+    "                            +(1/2)*(k/n)*(1+np.exp(-2*x*np.sqrt(Delta)/tau**2)))\n",
+    "   a=(Delta/(2*tau**2))*(k/n)*(1-k/n)*np.exp((Delta-2*x*np.sqrt(Delta))/(2*tau**2))\\\n",
+    "               *(1+np.exp(-2*x*np.sqrt(Delta)/tau**2))\\\n",
+    "               +(Delta/tau**2)*(k/n)**2*np.exp(-2*x*np.sqrt(Delta)/tau**2)\n",
+    "   b=(((1-k/n)*np.exp((Delta-2*x*np.sqrt(Delta))/(2*tau**2))\\\n",
+    "           +(1/2)*(k/n)*(1+np.exp(-2*x*np.sqrt(Delta)/(2*tau**2)))))**2\n",
+    " else:\n",
+    "   yelemt=((1/2)*(k/n)*np.sqrt(Delta)*(-1+np.exp(2*x*np.sqrt(Delta)/tau**2)))/((1-k/n)*np.exp((Delta+2*x*np.sqrt(Delta))/(2*tau**2))\n",
+    "                            +(1/2)*(k/n)*(1+np.exp(2*x*np.sqrt(Delta)/tau**2)))\n",
+    "   a=(Delta/(2*tau**2))*(k/n)*(1-k/n)*np.exp((Delta+2*x*np.sqrt(Delta))/(2*tau**2))\\\n",
+    "               *(1+np.exp(2*x*np.sqrt(Delta)/tau**2))\\\n",
+    "               +(Delta/tau**2)*(k/n)**2*np.exp(2*x*np.sqrt(Delta)/tau**2)\n",
+    "   b=(((1-k/n)*np.exp((Delta+2*x*np.sqrt(Delta))/(2*tau**2))\\\n",
+    "           +(1/2)*(k/n)*(1+np.exp(2*x*np.sqrt(Delta)/(2*tau**2)))))**2 \n",
+    " yderielemt=a/b\n",
+    " return yelemt,yderielemt   \n",
+    "\n",
+    "def etafunanderi(v,k,n,tau,Delta):\n",
+    " yderitemp=np.zeros((len(v),1))\n",
+    " y=np.zeros((len(v),1)) \n",
+    " for i in range(len(v)):\n",
+    "  y[i],yderitemp[i]=etafunanderielemt(v[i][0],k,n,tau,Delta)\n",
+    " yderi=np.mean(yderitemp)\n",
+    " return y,yderi\n",
+    "\n",
+    "# Run AMP (iter=10)\n",
+    "MSE10=np.zeros(len(Deltavec)) # ALG1\n",
+    "MSE11=np.zeros(len(Deltavec)) # Classical AMP\n",
+    "for count in range(len(Deltavec)):\n",
+    " Delta=Deltavec[count]\n",
+    " maxouter=100\n",
+    " MSEouter10=np.zeros(maxouter)\n",
+    " MSEouter11=np.zeros(maxouter)\n",
+    " out=0 \n",
+    " while out<maxouter:\n",
+    " # Generate S,A,y\n",
+    "  s=np.zeros(n)\n",
+    "  for i in range(n):\n",
+    "   s[i]= np.random.binomial(1, k/n)\n",
+    "   if s[i]==1:\n",
+    "    s[i]=(2*np.random.binomial(1, 1/2)-1)*np.sqrt(Delta)\n",
+    "  A=np.sqrt(1/(alpha*n**beta))*np.random.normal(0,1,size=(m,n))\n",
+    "  W=np.random.normal(0,1,size=(m,1))\n",
+    "  y=np.matmul(A,s)+ W*np.sqrt(Delta)\n",
+    "  # Algorithm 1\n",
+    "  xhat=np.zeros((n,1))\n",
+    "  iterAMP=10\n",
+    "  z=np.zeros((m,1))\n",
+    "  iter=0\n",
+    "  pderi=0\n",
+    "  tau=np.sqrt(Delta+Delta/alpha)\n",
+    "  while iter<iterAMP:\n",
+    "    z=y-np.matmul(A,xhat)+(1/alpha)*z*pderi\n",
+    "    h=np.matmul(A.transpose(),z)+xhat\n",
+    "    p,pderi=etafunanderi(h,k,n,tau,Delta)  #etafunanderi(x,k,n,tau,Delta)\n",
+    "    xhat=p\n",
+    "    maxiter=1000\n",
+    "    u=np.random.normal(size=(maxiter,1))\n",
+    "    ma,deria=etafunanderi(tau*u,k,n,tau,Delta)  #etafunanderi(xi,k,n,tau,Delta):\n",
+    "    mb,derib=etafunanderi(np.sqrt(Delta)+tau*u,k,n,tau,Delta)\n",
+    "    mc,deric=etafunanderi(-np.sqrt(Delta)+tau*u,k,n,tau,Delta)\n",
+    "    v=(1-k/n)*ma**2+(k/n)*(1/2)*((mb-np.sqrt(Delta))**2+(mc+np.sqrt(Delta))**2)\n",
+    "    G=np.mean(v)\n",
+    "    tau=np.sqrt(Delta+(n**(1-beta)/alpha)*G)\n",
+    "    iter+=1\n",
+    "  sumup=0\n",
+    "  for i in range(len(s)):\n",
+    "    sumup=sumup+(xhat[i]-s[i])**2\n",
+    "  MSEouter10[out]=sumup/n**beta\n",
+    "  # Classical AMP\n",
+    "  xhat=np.zeros((n,1))\n",
+    "  iterAMP=10\n",
+    "  z=np.zeros((m,1))\n",
+    "  iter=0\n",
+    "  pderi=0\n",
+    "  tau=np.sqrt(Delta+Delta/alpha)\n",
+    "  while iter<iterAMP:\n",
+    "    z=y-np.matmul(A,xhat)+(1/alpha)*z*pderi\n",
+    "    h=np.matmul(A.transpose(),z)+xhat\n",
+    "    p,pderi=etafunanderi(h,k,n,tau,Delta)  #etafunanderi(x,k,n,tau,Delta)\n",
+    "    xhat=p\n",
+    "    maxiter=1000\n",
+    "    u=np.random.normal(size=(maxiter,1))\n",
+    "    ma,deria=etafunanderi(tau*u,k,n,tau,Delta)  #etafunanderi(xi,k,n,tau,Delta):\n",
+    "    mb,derib=etafunanderi(np.sqrt(Delta)+tau*u,k,n,tau,Delta)\n",
+    "    mc,deric=etafunanderi(-np.sqrt(Delta)+tau*u,k,n,tau,Delta)\n",
+    "    v=(1-k/n)*ma**2+(k/n)*(1/2)*((mb-np.sqrt(Delta))**2+(mc+np.sqrt(Delta))**2)\n",
+    "    G=np.mean(v)\n",
+    "    tau=np.sqrt(Delta+(1/alpha)*G)\n",
+    "    iter+=1\n",
+    "  sumup=0\n",
+    "  for i in range(len(s)):\n",
+    "    sumup=sumup+(xhat[i]-s[i])**2\n",
+    "  MSEouter11[out]=sumup/n**beta\n",
+    "  out+=1 #outer loop\n",
+    "  MSE10[count]=np.mean(MSEouter10)\n",
+    "  MSE11[count]=np.mean(MSEouter11)\n"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 15,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "#State Evolutions\n",
+    "SE=np.zeros(len(Deltavec)) # State Evolution\n",
+    "for count in range(len(Deltavec)):\n",
+    " Delta=Deltavec[count]\n",
+    " tau=np.sqrt(Delta+Delta/alpha)\n",
+    " iterAMP=10;\n",
+    " while iter<iterAMP:\n",
+    "    maxiter=1000\n",
+    "    u=np.random.normal(size=(maxiter,1))\n",
+    "    ma,deria=etafunanderi(tau*u,k,n,tau,Delta)  #etafunanderi(xi,k,n,tau,Delta):\n",
+    "    mb,derib=etafunanderi(np.sqrt(Delta)+tau*u,k,n,tau,Delta)\n",
+    "    mc,deric=etafunanderi(-np.sqrt(Delta)+tau*u,k,n,tau,Delta)\n",
+    "    v=(1-k/n)*ma**2+(k/n)*(1/2)*((mb-np.sqrt(Delta))**2+(mc+np.sqrt(Delta))**2)\n",
+    "    G=np.mean(v)\n",
+    "    tau=np.sqrt(Delta+(n**(1-beta)/alpha)*G)\n",
+    "    iter+=1\n",
+    " SE[count]=alpha*(tau**2-Delta)\n",
+    " "
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 16,
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "image/png": "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\n",
+      "text/plain": [
+       "<Figure size 432x288 with 1 Axes>"
+      ]
+     },
+     "metadata": {
+      "needs_background": "light"
+     },
+     "output_type": "display_data"
+    }
+   ],
+   "source": [
+    "fig, ax = plt.subplots()\n",
+    "ax.plot(snrdB,tilE,'b-o',snrdB,MSE10,'m:x',snrdB,SE,'g--*',linewidth=2)\n",
+    "ax.set_xlabel('SNR (dB)')\n",
+    "ax.set_ylabel('MSE')\n",
+    "plt.legend(('Fundamental Limit','Algorithm 1 (10 iterations)','Algorithm 1 (State Evolution)'))\n",
+    "#ax.set_xlim((1, 2.5))\n",
+    "#ax.set_ylim((0, 1))\n",
+    "ax.grid(True)\n",
+    "plt.savefig(\"JML2021Funda02.pdf\")"
+   ]
+  }
+ ],
+ "metadata": {
+  "kernelspec": {
+   "display_name": "Python 3",
+   "language": "python",
+   "name": "python3"
+  },
+  "language_info": {
+   "codemirror_mode": {
+    "name": "ipython",
+    "version": 3
+   },
+   "file_extension": ".py",
+   "mimetype": "text/x-python",
+   "name": "python",
+   "nbconvert_exporter": "python",
+   "pygments_lexer": "ipython3",
+   "version": "3.8.3"
+  }
+ },
+ "nbformat": 4,
+ "nbformat_minor": 4
+}
